@@ -1,12 +1,15 @@
 import pathlib
+import getpass
 
 from store import read_items, write_items, Item
 from generate import generate_password
+from crypto import encrypt_data, decrypt_data, compute_sha256
 
 from .commands import Command
 
 
 HOME = pathlib.Path('~').expanduser()
+MIN_LEN_MASTERPASSWORD = 8
 
 CMDS = []
 HELP = Command(name='HELP', code='h', description='Show help').add_to_list(CMDS)
@@ -50,12 +53,36 @@ def main():
         elif words[0] == HELP.code and len(words) == 1:
             help()
         elif words[0] == READ.code and len(words) == 1:
-            with fpath.open('r') as fhandle:
-                items.clear()
-                read_items(fhandle, items)
+            masterpassword = getpass.getpass('Enter masterpassword:')
+            if len(masterpassword) < MIN_LEN_MASTERPASSWORD:
+                print('Masterpassword cannot be so short')
+                continue
+
+            key = compute_sha256(masterpassword)
+            del masterpassword
+
+            cyphertext = None
+            with fpath.open('rb') as fhandle:
+                cyphertext = fhandle.read()
+            lines = decrypt_data(cyphertext, key)
+            items = read_items(lines)
+            del lines
         elif words[0] == WRITE.code and len(words) == 1:
-            with fpath.open('w') as fhandle:
-                write_items(fhandle, items)
+            masterpassword = getpass.getpass('Enter masterpassword:')
+            if len(masterpassword) < MIN_LEN_MASTERPASSWORD:
+                print('Masterpassword cannot be so short')
+                continue
+
+            key = compute_sha256(masterpassword)
+            del masterpassword
+
+            plaintext = write_items(items)
+            cyphertext = encrypt_data(plaintext, key)
+            del plaintext
+
+            with fpath.open('wb') as fhandle:
+                fhandle.write(cyphertext)
+                del cyphertext
         elif words[0] == ADD.code and len(words) == 1:
             login = input('Enter login (leave empty for none):')
             website_url = input('Enter website url (leave empty for none):')

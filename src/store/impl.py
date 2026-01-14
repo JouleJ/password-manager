@@ -1,5 +1,6 @@
-import base64
 from dataclasses import dataclass
+from typing import List
+import base64
 
 
 BEGIN_ITEM = 'begin_item'
@@ -24,29 +25,34 @@ def b64decode(s):
     return base64.standard_b64decode(s).decode('utf-8')
 
 
-def write_items(f, items):
+def write_items(items: List[Item]) -> List[str]:
+    lines = []
+
     for item in items:
-        f.write(BEGIN_ITEM + '\n')
+        lines.append(BEGIN_ITEM)
 
         if item.website_url:
             encoded_value = b64encode(item.website_url)
-            f.write('{} {}\n'.format(WEBSITE, encoded_value))
+            lines.append('{} {}'.format(WEBSITE, encoded_value))
 
         if item.login:
             encoded_value = b64encode(item.login)
-            f.write('{} {}\n'.format(LOGIN, encoded_value))
+            lines.append('{} {}'.format(LOGIN, encoded_value))
 
         if item.password:
             encoded_value = b64encode(item.password)
-            f.write('{} {}\n'.format(PASSWORD, encoded_value))
+            lines.append('{} {}\n'.format(PASSWORD, encoded_value))
 
-        f.write(END_ITEM + '\n')
+        lines.append(END_ITEM + '\n')
+
+    return lines
 
 
-def read_items(f, items):
+def read_items(lines: List[str]) -> List[Item]:
+    items = []
     current_item = None
 
-    for line in f:
+    for line in lines:
         words = line.strip().rstrip().split()
         if words:
             if words[0] == BEGIN_ITEM and len(words) == 1:
@@ -80,3 +86,5 @@ def read_items(f, items):
 
     if current_item is not None:
         raise RuntimeError('Bad sequence: missing {} command, cannot load password'.format(END_ITEM))
+
+    return items
